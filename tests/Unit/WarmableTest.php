@@ -170,7 +170,7 @@ class WarmableTest extends MockeryTestCase
         HeavyRequest::$testGetCache = Mockery::mock(CacheInterface::class);
         HeavyRequest::$testGetCache->expects('get')
             ->with(self::CACHE_KEY)
-            ->andReturn('hello world');;
+            ->andReturn('hello world');
 
         HeavyRequest::get();
     }
@@ -250,35 +250,22 @@ class WarmableTest extends MockeryTestCase
             ->get();
     }
 
-    public function testWithPreheatingShouldUseDifferentCache(): void
-    {
-        HeavyRequest::$testCache = Mockery::mock(CacheInterface::class);
-        HeavyRequest::$testCache->expects('has')->never();
-        HeavyRequest::$testCache->expects('get')->never();
-
-        $cache = Mockery::mock(CacheInterface::class);
-        $cache->expects('has')->andReturnTrue()->once();
-        $cache->expects('get')->andReturn('Hello World')->once();
-
-        HeavyRequest::withCache($cache)->withPreheating()->get();
-    }
-
-    public function testWithPreheatingShouldPreheatAlways(): void
-    {
-        HeavyRequest::$testCache = Mockery::mock(CacheInterface::class);
-        HeavyRequest::$testCache->expects('has')->once()->andReturn(false);
-        HeavyRequest::$testCache->expects('set')
-            ->with(self::CACHE_KEY, 'Hello World', null);
-
-        HeavyRequest::withPreheating();
-    }
-
     public function testWithoutPreheating(): void
     {
         HeavyRequest::$testCache = Mockery::mock(CacheInterface::class);
         HeavyRequest::$testCache->expects('get')->andReturn(null);
         HeavyRequest::$testCache->expects('set')->never();
         $this->assertNull(HeavyRequest::withoutPreheating()->get());
+    }
+
+    public function testWithPreheatingShouldPreheat(): void
+    {
+        HeavyRequest::$testCache = Mockery::mock(CacheInterface::class);
+        HeavyRequest::$testCache->expects('get')->once();
+
+        HeavyRequest::$testCache->expects('set')->once();
+
+        HeavyRequest::withoutPreheating()->withPreheating()->get();
     }
 
 
@@ -293,6 +280,28 @@ class WarmableTest extends MockeryTestCase
 
         HeavyRequest::cooldown();
         HeavyRequest::withKey('test')->cooldown();
+    }
+
+    public function testMissing(): void
+    {
+        HeavyRequest::$testCache = Mockery::mock(CacheInterface::class);
+
+        HeavyRequest::$testCache->expects('has')->with(self::CACHE_KEY)->andReturnFalse();
+        HeavyRequest::$testCache->expects('has')->with(self::CACHE_KEY)->andReturnTrue();
+
+        $this->assertTrue(HeavyRequest::missing());
+        $this->assertFalse(HeavyRequest::missing());
+    }
+
+    public function testMissingWithDifferentKey(): void
+    {
+        HeavyRequest::$testCache = Mockery::mock(CacheInterface::class);
+
+        HeavyRequest::$testCache->expects('has')->with('testKey')->andReturnFalse();
+        HeavyRequest::$testCache->expects('has')->with('testKey')->andReturnTrue();
+
+        $this->assertTrue(HeavyRequest::withKey('testKey')->missing());
+        $this->assertFalse(HeavyRequest::withKey('testKey')->missing());
     }
 
     public function testDependencyInjection(): void
@@ -364,7 +373,7 @@ class WarmableTest extends MockeryTestCase
             )->once();
         $cache->expects('set')
             ->withArgs(
-                function ($key, CacheItem $value, $ttl){
+                function ($key, CacheItem $value, $ttl) {
                     return $key === 'different_key'
                         && $value->ttl === 1704067500
                         && $value->data === 'Hello World'
@@ -546,7 +555,8 @@ class WarmableTest extends MockeryTestCase
             'getTtl' => ['getTtl'],
             'getGracePeriod' => ['getGracePeriod'],
             'callCooldown' => ['callCooldown'],
-            'afterShutdown' => ['afterShutdown']
+            'afterShutdown' => ['afterShutdown'],
+            'wrapInCacheItem' => ['wrapInCacheItem']
 
         ];
     }

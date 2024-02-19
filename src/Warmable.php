@@ -32,8 +32,8 @@ use Psr\SimpleCache\CacheInterface;
  * @method static string getKey()
  * @method string getKey()
  *
- * @method static string missing()
- * @method string missing()
+ * @method static bool missing()
+ * @method bool missing()
  *
  * @method static bool shouldPreheat()
  * @method bool shouldPreheat()
@@ -101,7 +101,7 @@ abstract class Warmable
         $grace = $this->getGracePeriod();
 
         if ($ttl && $grace) {
-            $warmedUp = new CacheItem(
+            $warmedUp = $this->wrapInCacheItem(
                 (new DateTime)->getTimestamp() + $ttl,
                 $warmedUp
             );
@@ -117,6 +117,11 @@ abstract class Warmable
             );
 
         return $this->preheated;
+    }
+
+    protected function wrapInCacheItem(int $ttl, mixed $data): CacheItem
+    {
+        return new CacheItem($ttl, $data);
     }
 
     protected function executeWarmable(): mixed
@@ -213,7 +218,7 @@ abstract class Warmable
             }
         }
 
-        if($result instanceof CacheItem) {
+        if ($result instanceof CacheItem) {
             $result = $result->data;
         }
 
@@ -240,10 +245,7 @@ abstract class Warmable
 
     protected function callWithPreheating(): static
     {
-        if ($this->missing()) {
-            $this->warmup();
-        }
-
+        $this->preheat = true;
         return $this;
     }
 
